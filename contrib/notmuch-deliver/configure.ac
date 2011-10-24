@@ -152,5 +152,6 @@ AC_OUTPUT(
 		  Makefile
 		  maildrop/numlib/Makefile
 		  src/Makefile
+		  test/Makefile
 		  )
 dnl }}}
