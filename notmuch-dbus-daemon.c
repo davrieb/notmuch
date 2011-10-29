@@ -71,12 +71,22 @@ notmuch_dbus_bus_acquired_cb (GDBusConnection *connection,
 }
 
 int
-main (void)
+main (int argc, char *argv[])
 {
+    GOptionContext *context;
+    GError *error = NULL;
     GMainLoop *main_loop;
     guint owner_id;
 
     g_type_init ();
+
+    context = g_option_context_new (NULL);
+    g_option_context_set_summary (context,
+	    "The notmuch mail system - DBus daemon.");
+    if (!g_option_context_parse(context, &argc, &argv, &error)) {
+	g_error_free (error);
+    }
+    g_option_context_free (context);
 
     /* Create a new event loop to run in */
     main_loop = g_main_loop_new (NULL, FALSE);
