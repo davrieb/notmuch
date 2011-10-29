@@ -21,6 +21,7 @@
  */
 
 #include "notmuch-client.h"
+#include "notmuch-dbus.h"
 
 #include <stdlib.h>
 
@@ -53,7 +54,7 @@ main (void)
     /* Create a new event loop to run in */
     main_loop = g_main_loop_new (NULL, FALSE);
 
-    owner_id = g_bus_own_name (G_BUS_TYPE_SESSION, "org.notmuchmail",
+    owner_id = g_bus_own_name (G_BUS_TYPE_SESSION, NOTMUCH_DBUS_NAME,
 	     G_BUS_NAME_OWNER_FLAGS_NONE,
 	     NULL,
 	     &notmuch_dbus_name_acquired_cb,
