@@ -1,0 +1,11 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node name="/org/notmuchmail/NotMuch/Server">
+    <interface name="org.notmuchmail.NotMuch.TestInterface">
+	<method name="database_get_version">
+	    <arg name="version" type="u" direction="out"/>
+	</method>
+	<signal name="Ping"/>
+	<property name="database_version" type="u" access="read"/>
+    </interface>
+</node>

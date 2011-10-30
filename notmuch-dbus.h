@@ -34,5 +34,8 @@
 #    define NOTMUCH_DBUS_INTERFACE "org.notmuchmail.NotMuch.TestInterface"
 #endif
 
+#ifndef NOTMUCH_DBUS_INTROSPECTION_XML
+#    define NOTMUCH_DBUS_INTROSPECTION_XML "notmuch-dbus-interface.xml"
+#endif
 
 #endif

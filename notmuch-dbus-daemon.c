@@ -28,6 +28,23 @@
 #include <glib.h>
 #include <gio/gio.h>
 
+static gchar*
+notmuch_dbus_read_introspection_xml (const char* path)
+{
+    gchar *xml;
+    gsize lenght;
+    GError *error;
+
+    g_assert (path);
+
+    error = NULL;
+    if (!g_file_get_contents (path, &xml, &lenght, &error)) {
+	exit(EXIT_FAILURE);
+    }
+
+    return xml;
+}
+
 static void
 notmuch_dbus_ping_cb (GDBusConnection * unused(connection),
 	const gchar *sender_name,
@@ -55,10 +72,21 @@ notmuch_dbus_bus_acquired_cb (GDBusConnection *connection,
 	const gchar *name,
 	gpointer user_data)
 {
-    g_assert(connection);
-    g_assert(name);
+    gchar *xml;
+    GError *error;
+    GDBusNodeInfo *node_info;
+
+    g_assert (connection);
+    g_assert (name);
 
     g_print ("Acquired the bus\n");
+
+    error = NULL;
+    xml = notmuch_dbus_read_introspection_xml (NOTMUCH_DBUS_INTROSPECTION_XML);
+    node_info = g_dbus_node_info_new_for_xml (xml, &error);
+    g_print ("Read node info with path: %s\n", node_info->path);
+
+    g_free (xml);
 
     g_dbus_connection_signal_subscribe (connection,
 	    NULL,
