@@ -6,6 +6,7 @@ tags
 .deps
 /notmuch
 /notmuch-dbus-daemon
+/notmuch-dbus-client
 notmuch.sym
 notmuch-shared
 notmuch.1.gz

@@ -53,7 +53,7 @@ endif
 FINAL_LIBNOTMUCH_LDFLAGS = $(LDFLAGS) $(AS_NEEDED_LDFLAGS) $(CONFIGURE_LDFLAGS)
 
 .PHONY: all
-all: notmuch notmuch-dbus-daemon notmuch-shared notmuch.1.gz
+all: notmuch notmuch-dbus-client notmuch-dbus-daemon notmuch-shared notmuch.1.gz
 ifeq ($(MAKECMDGOALS),)
 ifeq ($(shell cat .first-build-message 2>/dev/null),)
 	@NOTMUCH_FIRST_BUILD=1 $(MAKE) --no-print-directory all
@@ -311,6 +311,11 @@ notmuch_client_srcs =		\
 
 notmuch_client_modules = $(notmuch_client_srcs:.c=.o)
 
+notmuch_dbus_client_srcs =		\
+	notmuch-dbus-client.c\
+
+notmuch_dbus_client_modules = $(notmuch_dbus_client_srcs:.c=.o)
+
 notmuch_dbus_daemon_srcs =		\
 	notmuch-dbus-daemon.c\
 
@@ -320,6 +325,9 @@ notmuch: $(notmuch_client_modules) lib/libnotmuch.a util/libutil.a
 	$(call quiet,CXX $(CFLAGS)) $^ $(FINAL_LIBNOTMUCH_LDFLAGS) -o $@
 
 notmuch-dbus-daemon: $(notmuch_dbus_daemon_modules) lib/libnotmuch.a
+	$(call quiet,CXX $(CFLAGS)) $^ $(FINAL_LIBNOTMUCH_LDFLAGS) -o $@
+
+notmuch-dbus-client: $(notmuch_dbus_client_modules) lib/libnotmuch.a
 	$(call quiet,CXX $(CFLAGS)) $^ $(FINAL_LIBNOTMUCH_LDFLAGS) -o $@
 
 notmuch-shared: $(notmuch_client_modules) lib/$(LINKER_NAME)
@@ -364,4 +372,5 @@ install-desktop:
 SRCS  := $(SRCS) $(notmuch_client_srcs)
 CLEAN := $(CLEAN) notmuch notmuch-shared $(notmuch_client_modules) \
 	 notmuch-dbus-daemon $(notmuch_dbus_daemon_modules) \
+	 notmuch-dbus-client $(notmuch_dbus_client_modules) \
 	 notmuch.elc notmuch.1.gz

@@ -60,7 +60,14 @@ notmuch_dbus_handle_get_property (GDBusConnection  *unused (connection),
 	GError **unused (error),
 	gpointer unused (user_data))
 {
-    return NULL;
+    g_print ("Got request for property.\n");
+    g_print ("sender: %s\n", sender);
+    g_print ("object_path: %s\n", object_path);
+    g_print ("interface_name: %s\n", interface_name);
+    g_print ("property_name: %s\n", property_name);
+
+    return  g_variant_new ("(u)", 0);
+
 }
 
 static gboolean
