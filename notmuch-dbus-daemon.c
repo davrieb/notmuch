@@ -28,6 +28,54 @@
 #include <glib.h>
 #include <gio/gio.h>
 
+static void
+notmuch_dbus_handle_method_call (GDBusConnection *connection,
+	const gchar *sender,
+	const gchar *object_path,
+	const gchar *interface_name,
+	const gchar *method_name,
+	GVariant *unused (parameters),
+	GDBusMethodInvocation *invocation,
+	gpointer unused (user_data))
+{
+    GVariant *return_value;
+    g_assert (connection);
+
+    g_print ("Got method call.\n");
+    g_print ("sender: %s\n", sender);
+    g_print ("object_path: %s\n", object_path);
+    g_print ("interface_name: %s\n", interface_name);
+    g_print ("method_name: %s\n", method_name);
+
+    return_value = g_variant_new ("(u)", 0);
+    g_dbus_method_invocation_return_value (invocation, return_value);
+}
+
+static GVariant *
+notmuch_dbus_handle_get_property (GDBusConnection  *unused (connection),
+	const gchar *unused (sender),
+	const gchar *unused (object_path),
+	const gchar *unused (interface_name),
+	const gchar *unused (property_name),
+	GError **unused (error),
+	gpointer unused (user_data))
+{
+    return NULL;
+}
+
+static gboolean
+notmuch_dbus_handle_set_property (GDBusConnection  *unused (connection),
+	const gchar *unused (sender),
+	const gchar *unused (object_path),
+	const gchar *unused (interface_name),
+	const gchar *unused (property_name),
+	GVariant *unused (value),
+	GError **unused (error),
+	gpointer unused (user_data))
+{
+    return FALSE;
+}
+
 static gchar*
 notmuch_dbus_read_introspection_xml (const char* path)
 {
@@ -75,6 +123,8 @@ notmuch_dbus_bus_acquired_cb (GDBusConnection *connection,
     gchar *xml;
     GError *error;
     GDBusNodeInfo *node_info;
+    GDBusInterfaceVTable interface_vtable;
+    GDBusInterfaceInfo *interface_info;
 
     g_assert (connection);
     g_assert (name);
@@ -85,8 +135,33 @@ notmuch_dbus_bus_acquired_cb (GDBusConnection *connection,
     xml = notmuch_dbus_read_introspection_xml (NOTMUCH_DBUS_INTROSPECTION_XML);
     node_info = g_dbus_node_info_new_for_xml (xml, &error);
     g_print ("Read node info with path: %s\n", node_info->path);
+    if (error) {
+	g_print ("Reading instrospection data failed\n");
+        exit (EXIT_FAILURE);
+    } else
+	g_print ("Reading instrospection data succeeded\n");
+
+    interface_vtable.method_call = notmuch_dbus_handle_method_call;
+    interface_vtable.set_property = notmuch_dbus_handle_set_property;
+    interface_vtable.get_property = notmuch_dbus_handle_get_property;
+
+    interface_info = g_dbus_node_info_lookup_interface (node_info,
+	    NOTMUCH_DBUS_INTERFACE);
+
+    error = NULL;
+    g_dbus_connection_register_object (connection,
+	    NOTMUCH_DBUS_OBJECT,
+	    interface_info,
+	    &interface_vtable,
+	    NULL, NULL, NULL);
+    if (error) {
+	g_print ("Registering objects failed\n");
+        exit (EXIT_FAILURE);
+    } else
+	g_print ("Registering objects succeeded\n");
 
     g_free (xml);
+    g_dbus_node_info_unref (node_info);
 
     g_dbus_connection_signal_subscribe (connection,
 	    NULL,
