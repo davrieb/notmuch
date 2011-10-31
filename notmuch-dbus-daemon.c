@@ -106,6 +106,16 @@ notmuch_dbus_ping_cb (GDBusConnection * unused(connection),
 };
 
 static void
+notmuch_dbus_name_lost_cb (GDBusConnection * connection,
+	const gchar *name,
+	gpointer unused (user_data))
+{
+    g_assert (connection);
+
+    g_print ("Lost the name %s on the session bus.\n", name);
+}
+
+static void
 notmuch_dbus_name_acquired_cb (GDBusConnection * connection,
 	const gchar *name,
 	gpointer unused (user_data))
@@ -198,7 +208,7 @@ main (int argc, char *argv[])
 	     G_BUS_NAME_OWNER_FLAGS_NONE,
 	     &notmuch_dbus_bus_acquired_cb,
 	     &notmuch_dbus_name_acquired_cb,
-	     NULL,
+	     &notmuch_dbus_name_lost_cb,
 	     NULL,
 	     NULL);
 
