@@ -28,19 +28,46 @@
 #include <glib.h>
 #include <gio/gio.h>
 
+static void
+notmuch_dbus_ping_cb (GDBusConnection * unused(connection),
+	const gchar *sender_name,
+	const gchar * unused(object_path),
+	const gchar *interface_name,
+	const gchar *signal_name,
+	GVariant * unused(parameters),
+	gpointer unused (user_data))
+{
+    g_print ("received signal \"%s.%s\" from %s\n", interface_name, signal_name, sender_name);
+};
 
 static void
 notmuch_dbus_name_acquired_cb (GDBusConnection * connection,
 	const gchar *name,
-	gpointer user_data)
+	gpointer unused (user_data))
 {
-    GMainLoop *main_loop = (GMainLoop*)user_data;
-
     g_assert (connection);
 
     g_print ("Acquired the name %s on the session bus.\n", name);
+}
 
-    g_main_loop_quit (main_loop);
+static void
+notmuch_dbus_bus_acquired_cb (GDBusConnection *connection,
+	const gchar *name,
+	gpointer user_data)
+{
+    g_assert(connection);
+    g_assert(name);
+
+    g_print ("Acquired the bus\n");
+
+    g_dbus_connection_signal_subscribe (connection,
+	    NULL,
+	    NOTMUCH_DBUS_INTERFACE,
+	    "ping",
+	    NOTMUCH_DBUS_OBJECT,
+	    NULL,
+	    G_DBUS_SIGNAL_FLAGS_NONE,
+	    &notmuch_dbus_ping_cb, user_data, NULL);
 }
 
 int
@@ -56,10 +83,10 @@ main (void)
 
     owner_id = g_bus_own_name (G_BUS_TYPE_SESSION, NOTMUCH_DBUS_NAME,
 	     G_BUS_NAME_OWNER_FLAGS_NONE,
-	     NULL,
+	     &notmuch_dbus_bus_acquired_cb,
 	     &notmuch_dbus_name_acquired_cb,
 	     NULL,
-	     main_loop,
+	     NULL,
 	     NULL);
 
     g_main_loop_run (main_loop);
