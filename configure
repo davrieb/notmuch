@@ -288,15 +288,25 @@ if [ "$have_gmime" = "0" ]; then
     errors=$((errors + 1))
 fi
 
-# GMime already depends on Glib >= 2.12, but we use at least one Glib
-# function that only exists as of 2.14, (g_hash_table_get_keys)
-printf "Checking for Glib development files (>= 2.14)... "
+printf "Checking for Glib development files (>= 2.26)... "
 have_glib=0
-if pkg-config --exists 'glib-2.0 >= 2.14'; then
+if pkg-config --exists 'glib-2.0 >= 2.26'; then
     printf "Yes.\n"
     have_glib=1
     glib_cflags=$(pkg-config --cflags glib-2.0)
     glib_ldflags=$(pkg-config --libs glib-2.0)
+else
+    printf "No.\n"
+    errors=$((errors + 1))
+fi
+
+printf "Checking for GIO development files (>= 2.26)... "
+have_gio=0
+if pkg-config --exists 'gio-2.0 >= 2.26'; then
+    printf "Yes.\n"
+    have_gio=1
+    gio_cflags=$(pkg-config --cflags gio-2.0)
+    gio_ldflags=$(pkg-config --libs gio-2.0)
 else
     printf "No.\n"
     errors=$((errors + 1))
@@ -416,7 +426,7 @@ EOF
 	echo "	http://spruce.sourceforge.net/gmime/"
     fi
     if [ $have_glib -eq 0 ]; then
-	echo "	Glib library >= 2.14 (including development files such as headers)"
+	echo "	Glib library >= 2.26 (including development files such as headers)"
 	echo "	http://ftp.gnome.org/pub/gnome/sources/glib/"
     fi
     if [ $have_talloc -eq 0 ]; then
@@ -665,6 +675,10 @@ XAPIAN_LDFLAGS = ${xapian_ldflags}
 GMIME_CFLAGS = ${gmime_cflags}
 GMIME_LDFLAGS = ${gmime_ldflags}
 
+# Flags needed to compile and link against GIO
+GIO_CFLAGS = ${gio_cflags}
+GIO_LDFLAGS = ${gio_ldflags}
+
 # Flags needed to compile and link against talloc
 TALLOC_CFLAGS = ${talloc_cflags}
 TALLOC_LDFLAGS = ${talloc_ldflags}
@@ -691,12 +705,12 @@ WITH_BASH = ${WITH_BASH}
 WITH_ZSH = ${WITH_ZSH}
 
 # Combined flags for compiling and linking against all of the above
-CONFIGURE_CFLAGS = -DHAVE_GETLINE=\$(HAVE_GETLINE) \$(GMIME_CFLAGS)      \\
-		   \$(TALLOC_CFLAGS) -DHAVE_VALGRIND=\$(HAVE_VALGRIND)   \\
-		   \$(VALGRIND_CFLAGS) -DHAVE_STRCASESTR=\$(HAVE_STRCASESTR)
+CONFIGURE_CFLAGS = -DHAVE_GETLINE=\$(HAVE_GETLINE) \$(GMIME_CFLAGS) \\
+		    \$(GIO_CFLAGS) \$(TALLOC_CFLAGS) -DHAVE_VALGRIND=\$(HAVE_VALGRIND) \\
+		    \$(VALGRIND_CFLAGS) -DHAVE_STRCASESTR=\$(HAVE_STRCASESTR)
 CONFIGURE_CXXFLAGS = -DHAVE_GETLINE=\$(HAVE_GETLINE) \$(GMIME_CFLAGS)    \\
-		     \$(TALLOC_CFLAGS) -DHAVE_VALGRIND=\$(HAVE_VALGRIND) \\
-		     \$(VALGRIND_CFLAGS) \$(XAPIAN_CXXFLAGS)             \\
+		   \$(TALLOC_CFLAGS) -DHAVE_VALGRIND=\$(HAVE_VALGRIND) \\
+		   \$(VALGRIND_CFLAGS) \$(XAPIAN_CXXFLAGS) \$(GIO_CFLAGS) \\
                      -DHAVE_STRCASESTR=\$(HAVE_STRCASESTR)
-CONFIGURE_LDFLAGS =  \$(GMIME_LDFLAGS) \$(TALLOC_LDFLAGS) \$(XAPIAN_LDFLAGS)
+CONFIGURE_LDFLAGS =  \$(GMIME_LDFLAGS) \$(GIO_LDFLAGS) \$(TALLOC_LDFLAGS) \$(XAPIAN_LDFLAGS)
 EOF

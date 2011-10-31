@@ -5,6 +5,7 @@ tags
 *cscope*
 .deps
 /notmuch
+/notmuch-dbus-daemon
 notmuch.sym
 notmuch-shared
 notmuch.1.gz
