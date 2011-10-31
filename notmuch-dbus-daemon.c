@@ -28,6 +28,39 @@
 #include <glib.h>
 #include <gio/gio.h>
 
+
+#define DAEMON_TIMEOUT 1200
+
+
+static gboolean
+notmuch_dbus_daemon_timeout_cb (gpointer user_data) {
+    GMainLoop *main_loop = (GMainLoop *)user_data;
+
+    g_main_loop_quit (main_loop);
+
+    return TRUE;
+}
+
+static void notmuch_dbus_reset_daemon_quit_timeout (GMainLoop *main_loop)
+{
+    static GMainLoop *main_loop_internal;
+    static guint daemon_timeout_source_id;
+
+    if (main_loop != NULL)
+	main_loop_internal = main_loop;
+
+    if (daemon_timeout_source_id > 0) {
+	g_source_remove (daemon_timeout_source_id);
+    }
+
+    daemon_timeout_source_id =
+	g_timeout_add_seconds ( DAEMON_TIMEOUT,
+		&notmuch_dbus_daemon_timeout_cb,
+		main_loop_internal);
+
+    g_print ("reset daemon_quit_timeout\n");
+}
+
 static void
 notmuch_dbus_handle_method_call (GDBusConnection *connection,
 	const gchar *sender,
@@ -49,6 +82,8 @@ notmuch_dbus_handle_method_call (GDBusConnection *connection,
 
     return_value = g_variant_new ("(u)", 0);
     g_dbus_method_invocation_return_value (invocation, return_value);
+
+    notmuch_dbus_reset_daemon_quit_timeout (NULL);
 }
 
 static GVariant *
@@ -66,8 +101,9 @@ notmuch_dbus_handle_get_property (GDBusConnection  *unused (connection),
     g_print ("interface_name: %s\n", interface_name);
     g_print ("property_name: %s\n", property_name);
 
-    return  g_variant_new ("(u)", 0);
+    notmuch_dbus_reset_daemon_quit_timeout (NULL);
 
+    return  g_variant_new ("(u)", 0);
 }
 
 static gboolean
@@ -218,6 +254,8 @@ main (int argc, char *argv[])
 	     &notmuch_dbus_name_lost_cb,
 	     NULL,
 	     NULL);
+
+    notmuch_dbus_reset_daemon_quit_timeout (main_loop);
 
     g_main_loop_run (main_loop);
 
