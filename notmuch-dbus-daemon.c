@@ -32,6 +32,28 @@
 #define DAEMON_TIMEOUT 1200
 
 
+static notmuch_database_t *notmuch;
+
+
+static void notmuch_dbus_open_database ()
+{
+    notmuch_config_t *config;
+    gchar *db_path;
+
+    void *local = talloc_new (NULL);
+    config = notmuch_config_open (
+	    local, NULL, NULL);
+    db_path = talloc_asprintf (local, "%s",
+	    notmuch_config_get_database_path (config));
+    notmuch_config_close (config);
+
+    g_print("notmuch database path is: %s\n", db_path);
+
+    notmuch = notmuch_database_open (db_path,
+	    NOTMUCH_DATABASE_MODE_READ_WRITE);
+    g_assert (notmuch);
+}
+
 static gboolean
 notmuch_dbus_daemon_timeout_cb (gpointer user_data) {
     GMainLoop *main_loop = (GMainLoop *)user_data;
@@ -224,6 +246,8 @@ notmuch_dbus_bus_acquired_cb (GDBusConnection *connection,
 	    NULL,
 	    G_DBUS_SIGNAL_FLAGS_NONE,
 	    &notmuch_dbus_ping_cb, user_data, NULL);
+
+    notmuch_dbus_open_database ();
 }
 
 int
@@ -259,6 +283,7 @@ main (int argc, char *argv[])
 
     g_main_loop_run (main_loop);
 
+    notmuch_database_close (notmuch);
     g_bus_unown_name (owner_id);
 
     return EXIT_SUCCESS;

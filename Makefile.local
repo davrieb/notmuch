@@ -316,15 +316,32 @@ notmuch_dbus_client_srcs =		\
 
 notmuch_dbus_client_modules = $(notmuch_dbus_client_srcs:.c=.o)
 
-notmuch_dbus_daemon_srcs =		\
-	notmuch-dbus-daemon.c\
+notmuch_dbus_daemon_srcs =      \
+	notmuch-dbus-daemon.c   \
+	debugger.c		\
+	gmime-filter-reply.c	\
+	gmime-filter-headers.c	\
+	notmuch-config.c	\
+	notmuch-count.c		\
+	notmuch-dump.c		\
+	notmuch-new.c		\
+	notmuch-reply.c		\
+	notmuch-restore.c	\
+	notmuch-search.c	\
+	notmuch-setup.c		\
+	notmuch-show.c		\
+	notmuch-tag.c		\
+	notmuch-time.c		\
+	query-string.c		\
+	show-message.c		\
+	json.c
 
 notmuch_dbus_daemon_modules = $(notmuch_dbus_daemon_srcs:.c=.o)
 
 notmuch: $(notmuch_client_modules) lib/libnotmuch.a util/libutil.a
 	$(call quiet,CXX $(CFLAGS)) $^ $(FINAL_LIBNOTMUCH_LDFLAGS) -o $@
 
-notmuch-dbus-daemon: $(notmuch_dbus_daemon_modules) lib/libnotmuch.a
+notmuch-dbus-daemon: $(notmuch_dbus_daemon_modules) lib/libnotmuch.a util/libutil.a
 	$(call quiet,CXX $(CFLAGS)) $^ $(FINAL_LIBNOTMUCH_LDFLAGS) -o $@
 
 notmuch-dbus-client: $(notmuch_dbus_client_modules) lib/libnotmuch.a
