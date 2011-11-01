@@ -125,7 +125,16 @@ notmuch_dbus_handle_get_property (GDBusConnection  *unused (connection),
 
     notmuch_dbus_reset_daemon_quit_timeout (NULL);
 
-    return  g_variant_new ("(u)", 0);
+    if (g_strcmp0 (property_name, "database_version") == 0) {
+	guint32 database_version;
+
+	database_version = notmuch_database_get_version (notmuch);
+	return  g_variant_new ("(u)", database_version);
+    }
+
+    g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
+	    "Property %s doesn't exist here", property_name);
+    return NULL;
 }
 
 static gboolean
