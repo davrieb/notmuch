@@ -35,7 +35,7 @@
 static notmuch_database_t *notmuch;
 
 
-static void notmuch_dbus_open_database ()
+static void notmuch_dbus_open_database (GDBusConnection *connection)
 {
     notmuch_config_t *config;
     gchar *db_path;
@@ -51,7 +51,23 @@ static void notmuch_dbus_open_database ()
 
     notmuch = notmuch_database_open (db_path,
 	    NOTMUCH_DATABASE_MODE_READ_WRITE);
-    g_assert (notmuch);
+
+    if (notmuch) {
+	g_dbus_connection_emit_signal (connection,
+		NULL,
+		NOTMUCH_DBUS_OBJECT,
+		NOTMUCH_DBUS_INTERFACE,
+		"database_open_success",
+		NULL, NULL);
+    }
+    else {
+	g_dbus_connection_emit_signal (connection,
+		NULL,
+		NOTMUCH_DBUS_OBJECT,
+		NOTMUCH_DBUS_INTERFACE,
+		"database_open_fail",
+		NULL, NULL);
+    }
 
     talloc_free (db_path);
 }
@@ -258,7 +274,7 @@ notmuch_dbus_bus_acquired_cb (GDBusConnection *connection,
 	    G_DBUS_SIGNAL_FLAGS_NONE,
 	    &notmuch_dbus_ping_cb, user_data, NULL);
 
-    notmuch_dbus_open_database ();
+    notmuch_dbus_open_database (connection);
 }
 
 int
