@@ -5,6 +5,10 @@
 	<method name="database_get_version">
 	    <arg name="version" type="u" direction="out"/>
 	</method>
+	<method name="New">
+	    <arg name="args" type="v" direction="in"/>
+	    <arg name="result" type="v" direction="out"/>
+	</method>
 	<signal name="Ping"/>
 	<property name="database_version" type="u" access="read"/>
     </interface>
