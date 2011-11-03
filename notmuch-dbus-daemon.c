@@ -52,6 +52,8 @@ static void notmuch_dbus_open_database ()
     notmuch = notmuch_database_open (db_path,
 	    NOTMUCH_DATABASE_MODE_READ_WRITE);
     g_assert (notmuch);
+
+    talloc_free (db_path);
 }
 
 static gboolean
