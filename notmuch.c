@@ -144,7 +144,7 @@ static command_t commands[] = {
       "\tInvoking notmuch with no command argument will run setup if\n"
       "\tthe setup command has not previously been completed." },
     { "new", notmuch_new_command,
-      "[--verbose]",
+      "[--quiet] [--verbose]",
       "Find and import new messages to the notmuch database.",
       "\tScans all sub-directories of the mail directory, performing\n"
       "\tfull-text indexing on new messages that are found. Each new\n"
@@ -160,6 +160,10 @@ static command_t commands[] = {
       "\tThese subsequent runs will be much quicker than the initial run.\n"
       "\n"
       "\tSupported options for new include:\n"
+      "\n"
+      "\t--quiet\n"
+      "\n"
+      "\t\tQuiet operation. Runs without any output\n"
       "\n"
       "\t--verbose\n"
       "\n"

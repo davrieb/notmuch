@@ -52,6 +52,8 @@ typedef struct {
     notmuch_bool_t synchronize_flags;
 } add_files_state_t;
 
+static FILE *outfile;
+
 static volatile sig_atomic_t do_print_progress = 0;
 
 static void
@@ -116,24 +118,24 @@ generic_print_progress (const char *action, const char *object,
     elapsed_overall = notmuch_time_elapsed (tv_start, tv_now);
     rate_overall = processed / elapsed_overall;
 
-    printf ("%s %d ", action, processed);
+    fprintf (outfile, "%s %d ", action, processed);
 
     if (total) {
-	printf ("of %d %s", total, object);
+	fprintf (outfile, "of %d %s", total, object);
 	if (processed > 0 && elapsed_overall > 0.5) {
 	    double time_remaining = ((total - processed) / rate_overall);
-	    printf (" (");
+	    fprintf (outfile, " (");
 	    notmuch_time_print_formatted_seconds (time_remaining);
-	    printf (" remaining)");
+	    fprintf (outfile, " remaining)");
 	}
     } else {
-	printf ("%s", object);
+	fprintf (outfile, "%s", object);
 	if (elapsed_overall > 0.5)
-	    printf (" (%d %s/sec.)", (int) rate_overall, object);
+	    fprintf (outfile, " (%d %s/sec.)", (int) rate_overall, object);
     }
-    printf (".\033[K\r");
+    fprintf (outfile, ".\033[K\r");
 
-    fflush (stdout);
+    fflush (outfile);
 }
 
 static int
@@ -439,15 +441,15 @@ add_files_recursive (notmuch_database_t *notmuch,
 
 	if (state->verbose) {
 	    if (state->output_is_a_tty)
-		printf("\r\033[K");
+		fprintf(outfile, "\r\033[K");
 
-	    printf ("%i/%i: %s",
+	    fprintf (outfile, "%i/%i: %s",
 		    state->processed_files,
 		    state->total_files,
 		    next);
 
 	    putchar((state->output_is_a_tty) ? '\r' : '\n');
-	    fflush (stdout);
+	    fflush (outfile);
 	}
 
 	status = notmuch_database_begin_atomic (notmuch);
@@ -689,8 +691,8 @@ count_files (const char *path, int *count)
 	if (S_ISREG (st.st_mode)) {
 	    *count = *count + 1;
 	    if (*count % 1000 == 0) {
-		printf ("Found %d files so far.\r", *count);
-		fflush (stdout);
+		fprintf (outfile, "Found %d files so far.\r", *count);
+		fflush (outfile);
 	    }
 	} else if (S_ISDIR (st.st_mode)) {
 	    count_files (next, count);
@@ -712,7 +714,7 @@ upgrade_print_progress (void *closure,
 {
     add_files_state_t *state = closure;
 
-    printf ("Upgrading database: %.2f%% complete", progress * 100.0);
+    fprintf (outfile, "Upgrading database: %.2f%% complete", progress * 100.0);
 
     if (progress > 0) {
 	struct timeval tv_now;
@@ -722,14 +724,14 @@ upgrade_print_progress (void *closure,
 
 	elapsed = notmuch_time_elapsed (state->tv_start, tv_now);
 	time_remaining = (elapsed / progress) * (1.0 - progress);
-	printf (" (");
+	fprintf (outfile, " (");
 	notmuch_time_print_formatted_seconds (time_remaining);
-	printf (" remaining)");
+	fprintf (outfile, " remaining)");
     }
 
-    printf (".      \r");
+    fprintf (outfile, ".      \r");
 
-    fflush (stdout);
+    fflush (outfile);
 }
 
 /* Remove one message filename from the database. */
@@ -813,13 +815,17 @@ notmuch_new_command (void *ctx, int argc, char *argv[])
     notmuch_bool_t timer_is_active = FALSE;
 
     add_files_state.verbose = 0;
-    add_files_state.output_is_a_tty = isatty (fileno (stdout));
+    outfile = stdout;
 
     argc--; argv++; /* skip subcommand argument */
 
     for (i = 0; i < argc && argv[i][0] == '-'; i++) {
 	if (STRNCMP_LITERAL (argv[i], "--verbose") == 0) {
 	    add_files_state.verbose = 1;
+	}
+	else if (STRNCMP_LITERAL (argv[i], "--quiet") == 0) {
+	    add_files_state.verbose = 0;
+	    outfile = fopen ("/dev/null", "r+");
 	} else {
 	    fprintf (stderr, "Unrecognized option: %s\n", argv[i]);
 	    return 1;
@@ -828,6 +834,8 @@ notmuch_new_command (void *ctx, int argc, char *argv[])
     config = notmuch_config_open (ctx, NULL, NULL);
     if (config == NULL)
 	return 1;
+
+    add_files_state.output_is_a_tty = isatty (fileno (outfile));
 
     add_files_state.new_tags = notmuch_config_get_new_tags (config, &add_files_state.new_tags_length);
     add_files_state.synchronize_flags = notmuch_config_get_maildir_synchronize_flags (config);
@@ -843,7 +851,7 @@ notmuch_new_command (void *ctx, int argc, char *argv[])
 	if (interrupted)
 	    return 1;
 
-	printf ("Found %d total files (that's not much mail).\n", count);
+	fprintf (outfile, "Found %d total files (that's not much mail).\n", count);
 	notmuch = notmuch_database_create (db_path);
 	add_files_state.total_files = count;
     } else {
@@ -853,11 +861,11 @@ notmuch_new_command (void *ctx, int argc, char *argv[])
 	    return 1;
 
 	if (notmuch_database_needs_upgrade (notmuch)) {
-	    printf ("Welcome to a new version of notmuch! Your database will now be upgraded.\n");
+	    fprintf (outfile, "Welcome to a new version of notmuch! Your database will now be upgraded.\n");
 	    gettimeofday (&add_files_state.tv_start, NULL);
 	    notmuch_database_upgrade (notmuch, upgrade_print_progress,
 				      &add_files_state);
-	    printf ("Your notmuch database has now been upgraded to database format version %u.\n",
+	    fprintf (outfile, "Your notmuch database has now been upgraded to database format version %u.\n",
 		    notmuch_database_get_version (notmuch));
 	}
 
@@ -939,43 +947,43 @@ notmuch_new_command (void *ctx, int argc, char *argv[])
 				    tv_now);
 
     if (add_files_state.processed_files) {
-	printf ("Processed %d %s in ", add_files_state.processed_files,
+	fprintf (outfile, "Processed %d %s in ", add_files_state.processed_files,
 		add_files_state.processed_files == 1 ?
 		"file" : "total files");
 	notmuch_time_print_formatted_seconds (elapsed);
 	if (elapsed > 1) {
-	    printf (" (%d files/sec.).\033[K\n",
+	    fprintf (outfile, " (%d files/sec.).\033[K\n",
 		    (int) (add_files_state.processed_files / elapsed));
 	} else {
-	    printf (".\033[K\n");
+	    fprintf (outfile, ".\033[K\n");
 	}
     }
 
     if (add_files_state.added_messages) {
-	printf ("Added %d new %s to the database.",
+	fprintf (outfile, "Added %d new %s to the database.",
 		add_files_state.added_messages,
 		add_files_state.added_messages == 1 ?
 		"message" : "messages");
     } else {
-	printf ("No new mail.");
+	fprintf (outfile, "No new mail.");
     }
 
     if (add_files_state.removed_messages) {
-	printf (" Removed %d %s.",
+	fprintf (outfile, " Removed %d %s.",
 		add_files_state.removed_messages,
 		add_files_state.removed_messages == 1 ? "message" : "messages");
     }
 
     if (add_files_state.renamed_messages) {
-	printf (" Detected %d file %s.",
+	fprintf (outfile, " Detected %d file %s.",
 		add_files_state.renamed_messages,
 		add_files_state.renamed_messages == 1 ? "rename" : "renames");
     }
 
-    printf ("\n");
+    fprintf (outfile, "\n");
 
     if (ret) {
-	printf ("\nNote: At least one error was encountered: %s\n",
+	fprintf (outfile, "\nNote: At least one error was encountered: %s\n",
 		notmuch_status_to_string (ret));
     }
 
