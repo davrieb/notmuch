@@ -797,22 +797,135 @@ _remove_directory (void *ctx,
     notmuch_directory_destroy (directory);
 }
 
+static int
+notmuch_new_act (void *ctx,
+	notmuch_database_t *notmuch,
+	const char *db_path,
+	add_files_state_t *add_files_state)
+{
+    notmuch_bool_t timer_is_active = FALSE;
+    int ret = 0;
+    _filename_node_t *f;
+    struct timeval tv_start;
+    struct timeval tv_now;
+    int i;
+    double elapsed;
+
+    add_files_state->processed_files = 0;
+    add_files_state->added_messages = 0;
+    add_files_state->removed_messages = add_files_state->renamed_messages = 0;
+    gettimeofday (&add_files_state->tv_start, NULL);
+
+    add_files_state->removed_files = _filename_list_create (ctx);
+    add_files_state->removed_directories = _filename_list_create (ctx);
+    add_files_state->directory_mtimes = _filename_list_create (ctx);
+
+    if (! debugger_is_active () && add_files_state->output_is_a_tty
+	    && ! add_files_state->verbose) {
+	setup_progress_printing_timer ();
+	timer_is_active = TRUE;
+    }
+
+    ret = add_files (notmuch, db_path, add_files_state);
+
+    gettimeofday (&tv_start, NULL);
+    for (f = add_files_state->removed_files->head; f && !interrupted; f = f->next) {
+	remove_filename (notmuch, f->filename, add_files_state);
+	if (do_print_progress) {
+	    do_print_progress = 0;
+	    generic_print_progress ("Cleaned up", "messages",
+		    tv_start, add_files_state->removed_messages + add_files_state->renamed_messages,
+		    add_files_state->removed_files->count);
+	}
+    }
+
+    gettimeofday (&tv_start, NULL);
+    for (f = add_files_state->removed_directories->head, i = 0; f && !interrupted; f = f->next, i++) {
+	_remove_directory (ctx, notmuch, f->filename, add_files_state);
+	if (do_print_progress) {
+	    do_print_progress = 0;
+	    generic_print_progress ("Cleaned up", "directories",
+		    tv_start, i,
+		    add_files_state->removed_directories->count);
+	}
+    }
+
+    for (f = add_files_state->directory_mtimes->head; f && !interrupted; f = f->next) {
+	notmuch_directory_t *directory;
+	directory = notmuch_database_get_directory (notmuch, f->filename);
+	if (directory) {
+	    notmuch_directory_set_mtime (directory, f->mtime);
+	    notmuch_directory_destroy (directory);
+	}
+    }
+
+    talloc_free (add_files_state->removed_files);
+    talloc_free (add_files_state->removed_directories);
+    talloc_free (add_files_state->directory_mtimes);
+
+    if (timer_is_active)
+	stop_progress_printing_timer ();
+
+    gettimeofday (&tv_now, NULL);
+    elapsed = notmuch_time_elapsed (add_files_state->tv_start,
+	    tv_now);
+
+    if (add_files_state->processed_files) {
+	fprintf (outfile, "Processed %d %s in ", add_files_state->processed_files,
+		add_files_state->processed_files == 1 ?
+		"file" : "total files");
+	notmuch_time_print_formatted_seconds (elapsed);
+	if (elapsed > 1) {
+	    fprintf (outfile, " (%d files/sec.).\033[K\n",
+		    (int) (add_files_state->processed_files / elapsed));
+	} else {
+	    fprintf (outfile, ".\033[K\n");
+	}
+    }
+
+    if (add_files_state->added_messages) {
+	fprintf (outfile, "Added %d new %s to the database.",
+		add_files_state->added_messages,
+		add_files_state->added_messages == 1 ?
+		"message" : "messages");
+    } else {
+	fprintf (outfile, "No new mail.");
+    }
+
+    if (add_files_state->removed_messages) {
+	fprintf (outfile, " Removed %d %s.",
+		add_files_state->removed_messages,
+		add_files_state->removed_messages == 1 ? "message" : "messages");
+    }
+
+    if (add_files_state->renamed_messages) {
+	fprintf (outfile, " Detected %d file %s.",
+		add_files_state->renamed_messages,
+		add_files_state->renamed_messages == 1 ? "rename" : "renames");
+    }
+
+    fprintf (outfile, "\n");
+
+    if (ret) {
+	fprintf (outfile, "\nNote: At least one error was encountered: %s\n",
+		notmuch_status_to_string (ret));
+    }
+
+    return ret;
+}
+
 int
 notmuch_new_command (void *ctx, int argc, char *argv[])
 {
     notmuch_config_t *config;
     notmuch_database_t *notmuch;
     add_files_state_t add_files_state;
-    double elapsed;
-    struct timeval tv_now, tv_start;
     int ret = 0;
     struct stat st;
     const char *db_path;
     char *dot_notmuch_path;
     struct sigaction action;
-    _filename_node_t *f;
     int i;
-    notmuch_bool_t timer_is_active = FALSE;
 
     add_files_state.verbose = 0;
     outfile = stdout;
@@ -887,105 +1000,7 @@ notmuch_new_command (void *ctx, int argc, char *argv[])
     talloc_free (dot_notmuch_path);
     dot_notmuch_path = NULL;
 
-    add_files_state.processed_files = 0;
-    add_files_state.added_messages = 0;
-    add_files_state.removed_messages = add_files_state.renamed_messages = 0;
-    gettimeofday (&add_files_state.tv_start, NULL);
-
-    add_files_state.removed_files = _filename_list_create (ctx);
-    add_files_state.removed_directories = _filename_list_create (ctx);
-    add_files_state.directory_mtimes = _filename_list_create (ctx);
-
-    if (! debugger_is_active () && add_files_state.output_is_a_tty
-	&& ! add_files_state.verbose) {
-	setup_progress_printing_timer ();
-	timer_is_active = TRUE;
-    }
-
-    ret = add_files (notmuch, db_path, &add_files_state);
-
-    gettimeofday (&tv_start, NULL);
-    for (f = add_files_state.removed_files->head; f && !interrupted; f = f->next) {
-	remove_filename (notmuch, f->filename, &add_files_state);
-	if (do_print_progress) {
-	    do_print_progress = 0;
-	    generic_print_progress ("Cleaned up", "messages",
-		tv_start, add_files_state.removed_messages + add_files_state.renamed_messages,
-		add_files_state.removed_files->count);
-	}
-    }
-
-    gettimeofday (&tv_start, NULL);
-    for (f = add_files_state.removed_directories->head, i = 0; f && !interrupted; f = f->next, i++) {
-	_remove_directory (ctx, notmuch, f->filename, &add_files_state);
-	if (do_print_progress) {
-	    do_print_progress = 0;
-	    generic_print_progress ("Cleaned up", "directories",
-		tv_start, i,
-		add_files_state.removed_directories->count);
-	}
-    }
-
-    for (f = add_files_state.directory_mtimes->head; f && !interrupted; f = f->next) {
-	notmuch_directory_t *directory;
-	directory = notmuch_database_get_directory (notmuch, f->filename);
-	if (directory) {
-	    notmuch_directory_set_mtime (directory, f->mtime);
-	    notmuch_directory_destroy (directory);
-	}
-    }
-
-    talloc_free (add_files_state.removed_files);
-    talloc_free (add_files_state.removed_directories);
-    talloc_free (add_files_state.directory_mtimes);
-
-    if (timer_is_active)
-	stop_progress_printing_timer ();
-
-    gettimeofday (&tv_now, NULL);
-    elapsed = notmuch_time_elapsed (add_files_state.tv_start,
-				    tv_now);
-
-    if (add_files_state.processed_files) {
-	fprintf (outfile, "Processed %d %s in ", add_files_state.processed_files,
-		add_files_state.processed_files == 1 ?
-		"file" : "total files");
-	notmuch_time_print_formatted_seconds (elapsed);
-	if (elapsed > 1) {
-	    fprintf (outfile, " (%d files/sec.).\033[K\n",
-		    (int) (add_files_state.processed_files / elapsed));
-	} else {
-	    fprintf (outfile, ".\033[K\n");
-	}
-    }
-
-    if (add_files_state.added_messages) {
-	fprintf (outfile, "Added %d new %s to the database.",
-		add_files_state.added_messages,
-		add_files_state.added_messages == 1 ?
-		"message" : "messages");
-    } else {
-	fprintf (outfile, "No new mail.");
-    }
-
-    if (add_files_state.removed_messages) {
-	fprintf (outfile, " Removed %d %s.",
-		add_files_state.removed_messages,
-		add_files_state.removed_messages == 1 ? "message" : "messages");
-    }
-
-    if (add_files_state.renamed_messages) {
-	fprintf (outfile, " Detected %d file %s.",
-		add_files_state.renamed_messages,
-		add_files_state.renamed_messages == 1 ? "rename" : "renames");
-    }
-
-    fprintf (outfile, "\n");
-
-    if (ret) {
-	fprintf (outfile, "\nNote: At least one error was encountered: %s\n",
-		notmuch_status_to_string (ret));
-    }
+    ret =  notmuch_new_act (ctx, notmuch, db_path, &add_files_state);
 
     notmuch_database_close (notmuch);
 
