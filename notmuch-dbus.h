@@ -23,7 +23,15 @@
 
 
 #ifndef NOTMUCH_DBUS_NAME
-#    define NOTMUCH_DBUS_NAME "org.notmuchmail"
+#    define NOTMUCH_DBUS_NAME "org.notmuchmail.NotMuch"
+#endif
+
+#ifndef NOTMUCH_DBUS_SERVER_NAME
+#    define NOTMUCH_DBUS_SERVER_NAME "org.notmuchmail.NotMuch.Server"
+#endif
+
+#ifndef NOTMUCH_DBUS_CLI_NAME
+#    define NOTMUCH_DBUS_CLI_NAME "org.notmuchmail.NotMuch.CLI"
 #endif
 
 #ifndef NOTMUCH_DBUS_OBJECT
