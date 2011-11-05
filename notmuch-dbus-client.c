@@ -29,38 +29,16 @@
 #include <glib.h>
 #include <gio/gio.h>
 
-int
-main (int argc, char *argv[])
+static void
+notmuch_dbus_name_appeared_cb (GDBusConnection *unused (connection),
+	const gchar *unused (name),
+	const gchar *unused (name_owner),
+	gpointer user_data)
 {
-    GOptionContext *context;
+    GDBusProxy *proxy = (GDBusProxy *)user_data;
     GError *error = NULL;
-    GDBusProxy *proxy;
     GVariant *result;
     guint32 result_uint32;
-
-    g_type_init ();
-
-    context = g_option_context_new (NULL);
-    g_option_context_set_summary (context,
-	    "The notmuch mail system - DBus daemon.");
-    if (!g_option_context_parse (context, &argc, &argv, &error)) {
-	g_error_free (error);
-    }
-    g_option_context_free (context);
-
-    error = NULL;
-    proxy = g_dbus_proxy_new_for_bus_sync (G_BUS_TYPE_SESSION,
-	    G_DBUS_PROXY_FLAGS_NONE,
-	    NULL,
-	    NOTMUCH_DBUS_NAME,
-	    NOTMUCH_DBUS_OBJECT,
-	    NOTMUCH_DBUS_INTERFACE,
-	    NULL,
-	    &error);
-    if (error)
-	g_print ("proxy connection failed\n");
-    else
-	g_print ("proxy connection succeeded\n");
 
     result = g_dbus_proxy_get_cached_property (proxy,
 	    "database_version");
@@ -99,6 +77,58 @@ main (int argc, char *argv[])
     g_variant_get (result, "(u)", &result_uint32);
     g_print ("result is: %i\n", result_uint32);
 
+}
+
+int
+main (int argc, char *argv[])
+{
+    GOptionContext *context;
+    GMainLoop *main_loop;
+    GError *error = NULL;
+    GDBusProxy *proxy;
+    GDBusConnection *connection;
+    guint watcher_id;
+
+    g_type_init ();
+
+    context = g_option_context_new (NULL);
+    g_option_context_set_summary (context,
+	    "The notmuch mail system - DBus daemon.");
+    if (!g_option_context_parse (context, &argc, &argv, &error)) {
+	g_error_free (error);
+    }
+    g_option_context_free (context);
+
+    /* Create a new event loop to run in */
+    main_loop = g_main_loop_new (NULL, FALSE);
+
+    error = NULL;
+    proxy = g_dbus_proxy_new_for_bus_sync (G_BUS_TYPE_SESSION,
+	    G_DBUS_PROXY_FLAGS_NONE,
+	    NULL,
+	    NOTMUCH_DBUS_NAME,
+	    NOTMUCH_DBUS_OBJECT,
+	    NOTMUCH_DBUS_INTERFACE,
+	    NULL,
+	    &error);
+    if (error)
+	g_print ("proxy connection failed\n");
+    else
+	g_print ("proxy connection succeeded\n");
+
+    connection = g_dbus_proxy_get_connection (proxy);
+    watcher_id = g_bus_watch_name_on_connection (connection,
+	    NOTMUCH_DBUS_NAME,
+	    G_BUS_NAME_WATCHER_FLAGS_AUTO_START,
+	    notmuch_dbus_name_appeared_cb,
+	    NULL, // name vanished
+	    proxy,
+	    NULL);
+
+    g_main_loop_run (main_loop);
+
+
+    g_bus_unwatch_name (watcher_id);
     g_object_unref (proxy);
 
     return EXIT_SUCCESS;
