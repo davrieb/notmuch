@@ -10,6 +10,8 @@
 	    <arg name="result" type="v" direction="out"/>
 	</method>
 	<signal name="Ping"/>
+	<signal name="database_open_success"/>
+	<signal name="database_open_fail"/>
 	<property name="database_version" type="u" access="read"/>
     </interface>
 </node>
