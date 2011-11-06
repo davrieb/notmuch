@@ -32,20 +32,27 @@
 #define DAEMON_TIMEOUT 1200
 
 
-static notmuch_database_t *notmuch;
+typedef struct {
+    notmuch_database_t *database;
+    notmuch_config_t *config;
+    GDBusConnection* connection;
+} notmuch_dbus_state_t;
 
 
-static void notmuch_dbus_open_database (GDBusConnection *connection)
+
+static void notmuch_dbus_open_database (notmuch_dbus_state_t *state)
 {
     notmuch_config_t *config;
+    notmuch_database_t *notmuch;
     gchar *db_path;
+
+    g_assert(state->connection);
 
     void *local = talloc_new (NULL);
     config = notmuch_config_open (
 	    local, NULL, NULL);
     db_path = talloc_asprintf (local, "%s",
 	    notmuch_config_get_database_path (config));
-    notmuch_config_close (config);
 
     g_print("notmuch database path is: %s\n", db_path);
 
@@ -53,7 +60,7 @@ static void notmuch_dbus_open_database (GDBusConnection *connection)
 	    NOTMUCH_DATABASE_MODE_READ_WRITE);
 
     if (notmuch) {
-	g_dbus_connection_emit_signal (connection,
+	g_dbus_connection_emit_signal (state->connection,
 		NULL,
 		NOTMUCH_DBUS_OBJECT,
 		NOTMUCH_DBUS_INTERFACE,
@@ -61,13 +68,16 @@ static void notmuch_dbus_open_database (GDBusConnection *connection)
 		NULL, NULL);
     }
     else {
-	g_dbus_connection_emit_signal (connection,
+	g_dbus_connection_emit_signal (state->connection,
 		NULL,
 		NOTMUCH_DBUS_OBJECT,
 		NOTMUCH_DBUS_INTERFACE,
 		"database_open_fail",
 		NULL, NULL);
     }
+
+    state->database = notmuch;
+    state->config = config;
 
     talloc_free (db_path);
 }
@@ -135,6 +145,10 @@ notmuch_dbus_handle_get_property (GDBusConnection  *unused (connection),
 	GError **unused (error),
 	gpointer unused (user_data))
 {
+    notmuch_dbus_state_t* state;
+
+    state = (notmuch_dbus_state_t *)user_data;
+
     g_print ("Got request for property.\n");
     g_print ("sender: %s\n", sender);
     g_print ("object_path: %s\n", object_path);
@@ -146,7 +160,7 @@ notmuch_dbus_handle_get_property (GDBusConnection  *unused (connection),
     if (g_strcmp0 (property_name, "database_version") == 0) {
 	guint32 database_version;
 
-	database_version = notmuch_database_get_version (notmuch);
+	database_version = notmuch_database_get_version (state->database);
 	return  g_variant_new ("(u)", database_version);
     }
 
@@ -227,9 +241,13 @@ notmuch_dbus_bus_acquired_cb (GDBusConnection *connection,
     GDBusNodeInfo *node_info;
     GDBusInterfaceVTable interface_vtable;
     GDBusInterfaceInfo *interface_info;
+    notmuch_dbus_state_t* state;
 
     g_assert (connection);
     g_assert (name);
+
+    state = (notmuch_dbus_state_t *) user_data;
+    state->connection = connection;
 
     g_print ("Acquired the bus\n");
 
@@ -255,7 +273,8 @@ notmuch_dbus_bus_acquired_cb (GDBusConnection *connection,
 	    NOTMUCH_DBUS_OBJECT,
 	    interface_info,
 	    &interface_vtable,
-	    NULL, NULL, NULL);
+	    state,
+	    NULL, NULL);
     if (error) {
 	g_print ("Registering objects failed\n");
         exit (EXIT_FAILURE);
@@ -274,7 +293,7 @@ notmuch_dbus_bus_acquired_cb (GDBusConnection *connection,
 	    G_DBUS_SIGNAL_FLAGS_NONE,
 	    &notmuch_dbus_ping_cb, user_data, NULL);
 
-    notmuch_dbus_open_database (connection);
+    notmuch_dbus_open_database (state);
 }
 
 int
@@ -282,10 +301,15 @@ main (int argc, char *argv[])
 {
     GOptionContext *context;
     GError *error = NULL;
+    notmuch_dbus_state_t state;
     GMainLoop *main_loop;
     guint owner_id;
 
     g_type_init ();
+
+    state.database = NULL;
+    state.config = NULL;
+    state.connection = NULL;
 
     context = g_option_context_new (NULL);
     g_option_context_set_summary (context,
@@ -303,14 +327,17 @@ main (int argc, char *argv[])
 	     &notmuch_dbus_bus_acquired_cb,
 	     &notmuch_dbus_name_acquired_cb,
 	     &notmuch_dbus_name_lost_cb,
-	     NULL,
+	     &state,
 	     NULL);
 
     notmuch_dbus_reset_daemon_quit_timeout (main_loop);
 
     g_main_loop_run (main_loop);
 
-    notmuch_database_close (notmuch);
+    notmuch_database_close (state.database);
+    notmuch_config_close (state.config);
+    g_dbus_connection_close_sync (state.connection, NULL, NULL);
+
     g_bus_unown_name (owner_id);
 
     return EXIT_SUCCESS;
