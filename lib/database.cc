@@ -24,6 +24,7 @@
 
 #include <sys/time.h>
 #include <signal.h>
+#include <fcntl.h>
 
 #include <glib.h> /* g_free, GPtrArray, GHashTable */
 
@@ -577,6 +578,9 @@ notmuch_database_open (const char *path,
 {
     notmuch_database_t *notmuch = NULL;
     char *notmuch_path = NULL, *xapian_path = NULL;
+    char *lockfile_path = NULL;
+    int lockfile_fd;
+    struct flock lock;
     struct stat st;
     int err;
     unsigned int i, version;
@@ -600,9 +604,58 @@ notmuch_database_open (const char *path,
 	goto DONE;
     }
 
+    if (asprintf (&lockfile_path, "%s/%s", notmuch_path, "lock") == -1) {
+	lockfile_path = NULL;
+	fprintf (stderr, "Out of memory\n");
+	goto DONE;
+    }
+
+    lockfile_fd  = open (lockfile_path, (O_CREAT | O_RDWR), 0777);
+    if (lockfile_fd < 0) {
+	fprintf (stderr, "failed to open lockfile\n");
+	perror (NULL);
+	goto DONE;
+    }
+
+    if (mode == NOTMUCH_DATABASE_MODE_READ_WRITE) {
+	lock.l_type = F_WRLCK;
+    } else {
+	lock.l_type = F_RDLCK;
+    }
+
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 1;
+    lock.l_pid = getpid ();
+    if (fcntl (lockfile_fd, F_SETLKW, &lock) == -1) {
+	perror (NULL);
+	close (lockfile_fd);
+	goto DONE;
+    }
+
+    lock.l_type = F_UNLCK;
+    if (fcntl (lockfile_fd, F_SETLKW, &lock) == -1) {
+	perror (NULL);
+	close (lockfile_fd);
+	goto DONE;
+    }
+
+    if (mode == NOTMUCH_DATABASE_MODE_READ_WRITE) {
+	lock.l_type = F_WRLCK;
+    } else {
+	lock.l_type = F_RDLCK;
+    }
+    lock.l_start = 1;
+    if (fcntl (lockfile_fd, F_SETLKW, &lock) == -1) {
+	perror (NULL);
+	close (lockfile_fd);
+	goto DONE;
+    }
+
     notmuch = talloc (NULL, notmuch_database_t);
     notmuch->exception_reported = FALSE;
     notmuch->path = talloc_strdup (notmuch, path);
+    notmuch->lockfile_fd = lockfile_fd;
 
     if (notmuch->path[strlen (notmuch->path) - 1] == '/')
 	notmuch->path[strlen (notmuch->path) - 1] = '\0';
@@ -694,6 +747,8 @@ notmuch_database_open (const char *path,
 	free (notmuch_path);
     if (xapian_path)
 	free (xapian_path);
+    if (lockfile_path)
+	free (lockfile_path);
 
     return notmuch;
 }
@@ -710,6 +765,8 @@ notmuch_database_close (notmuch_database_t *notmuch)
 		     error.get_msg().c_str());
 	}
     }
+
+    close (notmuch->lockfile_fd);
 
     delete notmuch->term_gen;
     delete notmuch->query_parser;

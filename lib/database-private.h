@@ -40,6 +40,7 @@ struct _notmuch_database {
     notmuch_bool_t exception_reported;
 
     char *path;
+    int lockfile_fd;
 
     notmuch_bool_t needs_upgrade;
     notmuch_database_mode_t mode;
