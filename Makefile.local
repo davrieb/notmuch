@@ -59,7 +59,7 @@ endif
 FINAL_LIBNOTMUCH_LDFLAGS = $(LDFLAGS) $(AS_NEEDED_LDFLAGS) $(CONFIGURE_LDFLAGS)
 
 .PHONY: all
-all: notmuch notmuch-shared build-man
+all: notmuch-dbus-daemon
 ifeq ($(MAKECMDGOALS),)
 ifeq ($(shell cat .first-build-message 2>/dev/null),)
 	@NOTMUCH_FIRST_BUILD=1 $(MAKE) --no-print-directory all
@@ -302,6 +302,9 @@ notmuch: $(notmuch_client_modules) lib/libnotmuch.a util/libutil.a parse-time-st
 
 notmuch-shared: $(notmuch_client_modules) lib/$(LINKER_NAME)
 	$(call quiet,$(FINAL_NOTMUCH_LINKER) $(CFLAGS)) $(notmuch_client_modules) $(FINAL_NOTMUCH_LDFLAGS) -o $@
+
+notmuch-dbus-daemon: notmuch-dbus-daemon.o
+	$(call quiet,CXX $(CFLAGS)) $^ $(FINAL_LIBNOTMUCH_LDFLAGS) -o $@
 
 .PHONY: install
 install: all install-man
