@@ -1,20 +1,27 @@
 #include <glib.h>
+#include <glib-object.h>
 #include <gio/gio.h>
 
 #include "notmuch-dbus-daemon.h"
 
 typedef struct _NotmuchDBusDaemonClass NotmuchDBusDaemonClass;
+typedef struct _NotmuchDBusDaemonPrivate NotmuchDBusDaemonPrivate;
 
 struct _NotmuchDBusDaemon
 {
   GObject parent_instance;
-  GDBusConnection *connection;
-  GMainLoop *main_loop;
+  NotmuchDBusDaemonPrivate *priv;
 };
 
 struct _NotmuchDBusDaemonClass
 {
   GObjectClass parent_class;
+};
+
+struct _NotmuchDBusDaemonPrivate
+{
+  GDBusConnection *connection;
+  GMainLoop *main_loop;
 };
 
 enum
@@ -25,7 +32,7 @@ enum
   N_PROPERTIES
 };
 
-G_DEFINE_TYPE (NotmuchDBusDaemon, notmuch_dbus_daemon, G_TYPE_OBJECT);
+G_DEFINE_TYPE_WITH_PRIVATE (NotmuchDBusDaemon, notmuch_dbus_daemon, G_TYPE_OBJECT);
 
 struct _NotmuchDBusDaemon *
 notmuch_dbus_daemon_new (GMainLoop *main_loop,
@@ -33,22 +40,67 @@ notmuch_dbus_daemon_new (GMainLoop *main_loop,
 {
   g_return_val_if_fail (main_loop, NULL);
   g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), NULL);
+
   return NOTMUCH_DBUS_DAEMON (g_object_new (NOTMUCH_DBUS_TYPE_DAEMON,
         "main_loop", main_loop,
-        "conection", connection,
+        "connection", connection,
         NULL));
 }
 
-static GObject *
-notmuch_dbus_daemon_constructor (GType gtype,
-    guint n_properties,
-    GObjectConstructParam *properties)
+static void
+notmuch_dbus_daemon_get_property (GObject *object,
+    guint property_id,
+    G_GNUC_UNUSED GValue *value,
+    GParamSpec *pspec)
 {
-  GObject *object;
+  NotmuchDBusDaemon *self = NOTMUCH_DBUS_DAEMON (object);
+  NotmuchDBusDaemonPrivate *priv = notmuch_dbus_daemon_get_instance_private (self);
 
-  object = G_OBJECT_CLASS (notmuch_dbus_daemon_parent_class)->constructor (gtype, n_properties, properties);
+  g_assert (G_IS_VALUE (value));
 
-  return object;
+  switch (property_id) {
+    case PROP_MAIN_LOOP:
+      g_assert (priv->main_loop);
+      g_assert (G_VALUE_HOLDS_POINTER (value));
+      g_value_set_pointer (value, g_main_loop_ref (priv->main_loop));
+      break;
+
+    case PROP_CONNECTION:
+      g_assert (G_VALUE_HOLDS_OBJECT (value));
+      g_value_set_object (value, priv->connection);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+notmuch_dbus_daemon_set_property (GObject *object,
+    guint property_id,
+    const GValue *value,
+    GParamSpec *pspec)
+{
+  NotmuchDBusDaemon *self = NOTMUCH_DBUS_DAEMON (object);
+
+  NotmuchDBusDaemonPrivate *priv = notmuch_dbus_daemon_get_instance_private (self);
+
+  switch (property_id) {
+    case PROP_MAIN_LOOP:
+      g_assert (G_VALUE_HOLDS_POINTER (value));
+      priv->main_loop =  g_main_loop_ref (g_value_get_pointer (value));
+      break;
+
+    case PROP_CONNECTION:
+      g_assert (G_VALUE_HOLDS_OBJECT (value));
+      priv->connection = g_value_dup_object (value);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
 }
 
 static void
@@ -56,31 +108,33 @@ notmuch_dbus_daemon_class_init (NotmuchDBusDaemonClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 
-  gobject_class->constructor = notmuch_dbus_daemon_constructor;
+  gobject_class->set_property = notmuch_dbus_daemon_set_property;
+  gobject_class->get_property = notmuch_dbus_daemon_get_property;
 
   g_object_class_install_property (gobject_class,
-	  PROP_CONNECTION,
-	  g_param_spec_pointer ("main-loop",
-	      "Main loop",
-	      "The GMainLoop this daemon uses",
-	      G_PARAM_READWRITE |
-	      G_PARAM_CONSTRUCT_ONLY |
-	      G_PARAM_STATIC_STRINGS));
+      PROP_MAIN_LOOP,
+      g_param_spec_pointer ("main-loop",
+        "Main loop",
+        "The GMainLoop this daemon uses",
+        G_PARAM_READWRITE |
+        G_PARAM_CONSTRUCT_ONLY |
+        G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class,
-	  PROP_CONNECTION,
-	  g_param_spec_object ("connection",
-	      "Connection",
-	      "The D-Bus connection this daemon uses",
-	      G_TYPE_DBUS_CONNECTION,
-	      G_PARAM_READWRITE |
-	      G_PARAM_CONSTRUCT_ONLY |
-	      G_PARAM_STATIC_STRINGS));
+      PROP_CONNECTION,
+      g_param_spec_object ("connection",
+        "Connection",
+        "The D-Bus connection this daemon uses",
+        G_TYPE_DBUS_CONNECTION,
+        G_PARAM_READWRITE |
+        G_PARAM_CONSTRUCT_ONLY |
+        G_PARAM_STATIC_STRINGS));
 }
 
 static void
-notmuch_dbus_daemon_init (G_GNUC_UNUSED NotmuchDBusDaemon *self)
+notmuch_dbus_daemon_init (NotmuchDBusDaemon *self)
 {
+  self->priv = notmuch_dbus_daemon_get_instance_private (self);
 }
 
 gboolean
