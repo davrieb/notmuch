@@ -104,12 +104,19 @@ notmuch_dbus_daemon_set_property (GObject *object,
 }
 
 static void
+notmuch_dbus_daemon_constructed (GObject *object)
+{
+  /* FIXME: contnue control flow here */
+}
+
+static void
 notmuch_dbus_daemon_class_init (NotmuchDBusDaemonClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 
   gobject_class->set_property = notmuch_dbus_daemon_set_property;
   gobject_class->get_property = notmuch_dbus_daemon_get_property;
+  gobject_class->constructed = notmuch_dbus_daemon_constructed;
 
   g_object_class_install_property (gobject_class,
       PROP_MAIN_LOOP,
