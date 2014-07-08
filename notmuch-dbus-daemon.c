@@ -3,6 +3,7 @@
 #include <gio/gio.h>
 
 #include "notmuch-dbus-daemon.h"
+#include "notmuch-dbus-generated.h"
 
 typedef struct _NotmuchDBusDaemonClass NotmuchDBusDaemonClass;
 typedef struct _NotmuchDBusDaemonPrivate NotmuchDBusDaemonPrivate;
@@ -23,6 +24,7 @@ struct _NotmuchDBusDaemonPrivate
 {
   GDBusConnection *connection;
   GMainLoop *main_loop;
+  GDBusObjectManagerServer *manager;
 };
 
 enum
@@ -112,7 +114,23 @@ notmuch_dbus_daemon_set_property (GObject *object,
 static void
 notmuch_dbus_daemon_constructed (GObject *object)
 {
-  /* FIXME: resume control flow here */
+  NotmuchDBusDaemon *self;
+  NotmuchDBusDaemonPrivate *priv;
+  NotmuchDBusObjectSkeleton *obj_skel;
+  NotmuchDBusIndex0 *index;
+
+  self = NOTMUCH_DBUS_DAEMON (object);
+  priv = self->priv;
+
+  priv->manager = g_dbus_object_manager_server_new (NOTMUCH_DBUS_PATH);
+  obj_skel = notmuch_dbus_object_skeleton_new (NOTMUCH_DBUS_PATH_OBJECT);
+  index = notmuch_dbus_index0_skeleton_new ();
+  notmuch_dbus_object_skeleton_set_index0 (obj_skel, index);
+
+  g_object_unref (index);
+
+  g_dbus_object_manager_server_export (priv->manager, G_DBUS_OBJECT_SKELETON (obj_skel));
+  g_object_unref (obj_skel);
 }
 
 static void
@@ -124,6 +142,7 @@ notmuch_dbus_daemon_finalize (GObject *object)
 
   g_object_unref (self->priv->connection);
   g_main_loop_unref (self->priv->main_loop);
+  g_object_unref (self->priv->manager);
 
   G_OBJECT_CLASS (notmuch_dbus_daemon_parent_class)->finalize (object);
 }
