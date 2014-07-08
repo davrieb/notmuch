@@ -14,3 +14,8 @@ libnotmuch*.dylib
 *~
 .*.swp
 releases
+contrib/notmuch-deliver/test
+notmuch-dbus-daemon
+notmuch-dbus-generated.c
+notmuch-dbus-generated.h
+notmuch.1.gz
