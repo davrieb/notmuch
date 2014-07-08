@@ -6,6 +6,18 @@
 
 G_BEGIN_DECLS
 
+#ifndef NOTMUCH_DBUS_NAME
+#define NOTMUCH_DBUS_NAME "org.notmuchmail.Notmuch.Index0"
+#endif
+
+#ifndef NOTMUCH_DBUS_PATH
+#define NOTMUCH_DBUS_PATH "/org/notmuchmail/Notmuch/Index0"
+#endif
+
+#ifndef NOTMUCH_DBUS_PATH_OBJECT
+#define NOTMUCH_DBUS_PATH_OBJECT "/org/notmuchmail/Notmuch/Index0/0"
+#endif
+
 gboolean
 callback (gpointer data);
 

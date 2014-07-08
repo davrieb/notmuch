@@ -211,7 +211,7 @@ main ()
   main_loop = g_main_loop_new (NULL, FALSE);
 
   name_owner_id = g_bus_own_name (G_BUS_TYPE_SESSION,
-      "org.notmuchmail.Notmuch.Index0",
+      NOTMUCH_DBUS_NAME,
       G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT | G_BUS_NAME_OWNER_FLAGS_REPLACE,
       notmuch_dbus_acquired_handler,
       notmuch_dbus_name_acquired_handler,
