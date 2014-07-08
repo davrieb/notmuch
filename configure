@@ -349,6 +349,30 @@ if ! pkg-config --exists zlib; then
   rm -f compat/gen_zlib_pc
 fi
 
+printf "Checking for gio-unix development files (>= 2.22)... "
+have_gio=0
+if pkg-config --exists 'gio-unix-2.0 >= 2.22'; then
+    printf "Yes.\n"
+    have_gio_unix=1
+    gio_unix_cflags=$(pkg-config --cflags gio-unix-2.0)
+    gio_unix_ldflags=$(pkg-config --libs gio-unix-2.0)
+else
+    printf "No.\n"
+    errors=$((errors + 1))
+fi
+
+printf "Checking for gio-unix development files (>= 2.22)... "
+have_gio=0
+if pkg-config --exists 'gio-unix-2.0 >= 2.22'; then
+    printf "Yes.\n"
+    have_gio_unix=1
+    gio_unix_cflags=$(pkg-config --cflags gio-unix-2.0)
+    gio_unix_ldflags=$(pkg-config --libs gio-unix-2.0)
+else
+    printf "No.\n"
+    errors=$((errors + 1))
+fi
+
 printf "Checking for zlib (>= 1.2.5.2)... "
 have_zlib=0
 if pkg-config --atleast-version=1.2.5.2 zlib; then
@@ -882,6 +906,10 @@ LINKER_RESOLVES_LIBRARY_DEPENDENCIES = ${linker_resolves_library_dependencies}
 XAPIAN_CXXFLAGS = ${xapian_cxxflags}
 XAPIAN_LDFLAGS = ${xapian_ldflags}
 
+# Flags needed to compile and link against gio-unix-2.0
+GIO_UNIX_CFLAGS = ${gio_unix_cflags}
+GIO_UNIX_LDFLAGS = ${gio_unix_ldflags}
+
 # Flags needed to compile and link against GMime-2.4
 GMIME_CFLAGS = ${gmime_cflags}
 GMIME_LDFLAGS = ${gmime_ldflags}
@@ -917,6 +945,7 @@ WITH_ZSH = ${WITH_ZSH}
 
 # Combined flags for compiling and linking against all of the above
 CONFIGURE_CFLAGS = -DHAVE_GETLINE=\$(HAVE_GETLINE) \$(GMIME_CFLAGS)      \\
+		   \$(GIO_UNIX_CFLAGS)                                   \\
 		   -DHAVE_CANONICALIZE_FILE_NAME=\$(HAVE_CANONICALIZE_FILE_NAME) \\
 		   \$(ZLIB_CFLAGS)					 \\
 		   \$(TALLOC_CFLAGS) -DHAVE_VALGRIND=\$(HAVE_VALGRIND)   \\
@@ -930,6 +959,7 @@ CONFIGURE_CFLAGS = -DHAVE_GETLINE=\$(HAVE_GETLINE) \$(GMIME_CFLAGS)      \\
 		   -DUTIL_BYTE_ORDER=\$(UTIL_BYTE_ORDER)
 
 CONFIGURE_CXXFLAGS = -DHAVE_GETLINE=\$(HAVE_GETLINE) \$(GMIME_CFLAGS)    \\
+		     \$(GIO_UNIX_CFLAGS)                                 \\
 		     -DHAVE_CANONICALIZE_FILE_NAME=\$(HAVE_CANONICALIZE_FILE_NAME) \\
 		     \$(ZLIB_CFLAGS)					 \\
 		     \$(TALLOC_CFLAGS) -DHAVE_VALGRIND=\$(HAVE_VALGRIND) \\
@@ -942,5 +972,5 @@ CONFIGURE_CXXFLAGS = -DHAVE_GETLINE=\$(HAVE_GETLINE) \$(GMIME_CFLAGS)    \\
 		     -DHAVE_XAPIAN_COMPACT=\$(HAVE_XAPIAN_COMPACT)       \\
 		     -DUTIL_BYTE_ORDER=\$(UTIL_BYTE_ORDER)
 
-CONFIGURE_LDFLAGS =  \$(GMIME_LDFLAGS) \$(TALLOC_LDFLAGS) \$(ZLIB_LDFLAGS) \$(XAPIAN_LDFLAGS)
+CONFIGURE_LDFLAGS =  \$(GMIME_LDFLAGS) \$(GIO_UNIX_LDFLAGS) \$(TALLOC_LDFLAGS) \$(ZLIB_LDFLAGS) \$(XAPIAN_LDFLAGS)
 EOF

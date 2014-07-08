@@ -295,6 +295,12 @@ notmuch_client_srcs =		\
 
 notmuch_client_modules = $(notmuch_client_srcs:.c=.o)
 
+notmuch_dbus_daemon_srcs = \
+	notmuch-dbus-daemon.c \
+	notmuch-dbus-generated.c
+
+notmuch_dbus_daemon_modules = $(notmuch_dbus_daemon_srcs:.c=.o)
+
 notmuch.o: version.stamp
 
 notmuch: $(notmuch_client_modules) lib/libnotmuch.a util/libutil.a parse-time-string/libparse-time-string.a
@@ -303,8 +309,16 @@ notmuch: $(notmuch_client_modules) lib/libnotmuch.a util/libutil.a parse-time-st
 notmuch-shared: $(notmuch_client_modules) lib/$(LINKER_NAME)
 	$(call quiet,$(FINAL_NOTMUCH_LINKER) $(CFLAGS)) $(notmuch_client_modules) $(FINAL_NOTMUCH_LDFLAGS) -o $@
 
-notmuch-dbus-daemon: notmuch-dbus-daemon.o
+notmuch-dbus-daemon: $(notmuch_dbus_daemon_modules)
 	$(call quiet,CXX $(CFLAGS)) $^ $(FINAL_LIBNOTMUCH_LDFLAGS) -o $@
+
+notmuch-dbus-generated.c notmuch-dbus-generated.h: org.notmuchmail.Notmuch.Index.xml
+	gdbus-codegen \
+	    --interface-prefix org.notmuchmail.Notmuch. \
+	    --generate-c-code notmuch-dbus-generated \
+	    --c-namespace NotmuchDBus \
+	    --c-generate-object-manager \
+	    $^
 
 .PHONY: install
 install: all install-man
@@ -337,8 +351,9 @@ install-desktop:
 	mkdir -p "$(DESTDIR)$(desktop_dir)"
 	desktop-file-install --mode 0644 --dir "$(DESTDIR)$(desktop_dir)" notmuch.desktop
 
-SRCS  := $(SRCS) $(notmuch_client_srcs)
+SRCS  := $(SRCS) $(notmuch_client_srcs) $(notmuch_dbus_daemon_srcs)
 CLEAN := $(CLEAN) notmuch notmuch-shared $(notmuch_client_modules)
+CLEAN := $(CLEAN) notmuch-dbus-daemon notmuch-dbus-generated.c notmuch-dbus-generated.h $(notmuch_dbus_daemon_modules)
 CLEAN := $(CLEAN) version.stamp notmuch-*.tar.gz.tmp
 
 DISTCLEAN := $(DISTCLEAN) .first-build-message Makefile.config

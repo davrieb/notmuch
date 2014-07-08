@@ -1,0 +1,18 @@
+<node>
+  <!-- org.notmuchmail.Notmuch.Index:
+  @short)description D-Bus interface for the Notmuch email indexer.
+  @since 0.18.dbus.0.1
+
+  This is the D-Bus interface to the Notmuch email indexer. More info can
+  also be found on http://notmuchmail.org/
+  -->
+  <interface name="org.notmuchmail.Notmuch.Index0">
+    <!-- WriterActive:
+    This property specifies whether a writer thread is currently locking
+    the notmuch database. Please note that it is possible that another
+    process outside of the daemon is riting to the database, which is not
+    reflected here.
+    -->
+    <property name="WriterActive" type="b" access="read"/>
+  </interface>
+</node>
