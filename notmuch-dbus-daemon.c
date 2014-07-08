@@ -6,6 +6,7 @@
 
 typedef struct _NotmuchDBusDaemonClass NotmuchDBusDaemonClass;
 typedef struct _NotmuchDBusDaemonPrivate NotmuchDBusDaemonPrivate;
+typedef struct _NotmuchDBusMainData NotmuchDBusMainData;
 
 struct _NotmuchDBusDaemon
 {
@@ -30,6 +31,11 @@ enum
   PROP_CONNECTION,
   PROP_MAIN_LOOP,
   N_PROPERTIES
+};
+
+struct _NotmuchDBusMainData {
+  NotmuchDBusDaemon *daemon;
+  GMainLoop *main_loop;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE (NotmuchDBusDaemon, notmuch_dbus_daemon, G_TYPE_OBJECT);
@@ -106,7 +112,7 @@ notmuch_dbus_daemon_set_property (GObject *object,
 static void
 notmuch_dbus_daemon_constructed (GObject *object)
 {
-  /* FIXME: contnue control flow here */
+  /* FIXME: resume control flow here */
 }
 
 static void
@@ -172,19 +178,18 @@ notmuch_dbus_name_acquired_handler (GDBusConnection *connection,
     const gchar *name,
     gpointer user_data)
 {
-  GMainLoop *main_loop;
-  NotmuchDBusDaemon *daemon;
+  NotmuchDBusMainData *main_data;
 
   g_assert (connection);
   g_assert (name);
 
-  main_loop = (GMainLoop*) user_data;
+  main_data = (NotmuchDBusMainData*) user_data;
 
   g_print ("Acquired name %s on D-Bus\n", name);
 
-  daemon = notmuch_dbus_daemon_new (main_loop, connection);
+  main_data->daemon = notmuch_dbus_daemon_new (main_data->main_loop, connection);
 
-  g_idle_add (callback, main_loop);
+  g_idle_add (callback, main_data->main_loop);
 }
 
 void
@@ -205,10 +210,13 @@ notmuch_dbus_name_lost_handler (GDBusConnection *connection,
 int
 main ()
 {
-  GMainLoop* main_loop;
+  NotmuchDBusMainData *main_data;
+  GMainLoop *main_loop;
   guint name_owner_id;
 
+  main_data = (NotmuchDBusMainData*) g_malloc0 (sizeof (NotmuchDBusMainData));
   main_loop = g_main_loop_new (NULL, FALSE);
+  main_data->main_loop = main_loop;
 
   name_owner_id = g_bus_own_name (G_BUS_TYPE_SESSION,
       NOTMUCH_DBUS_NAME,
@@ -216,14 +224,18 @@ main ()
       notmuch_dbus_acquired_handler,
       notmuch_dbus_name_acquired_handler,
       notmuch_dbus_name_lost_handler,
-      main_loop,
+      main_data,
       NULL);
 
   g_main_loop_run (main_loop);
 
-  g_main_loop_unref (main_loop);
   if (name_owner_id != 0)
     g_bus_unown_name (name_owner_id);
+  name_owner_id = 0;
+
+  g_main_loop_unref (main_loop);
+  g_object_unref (main_data->daemon);
+  g_free (main_data);
 
   return 0;
 }
