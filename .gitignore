@@ -16,6 +16,7 @@ libnotmuch*.dylib
 releases
 contrib/notmuch-deliver/test
 notmuch-dbus-daemon
+notmuch-dbus-daemon-shared
 notmuch-dbus-generated.c
 notmuch-dbus-generated.h
 notmuch.1.gz
