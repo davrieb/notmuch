@@ -116,6 +116,19 @@ notmuch_dbus_daemon_constructed (GObject *object)
 }
 
 static void
+notmuch_dbus_daemon_finalize (GObject *object)
+{
+  NotmuchDBusDaemon *self = NOTMUCH_DBUS_DAEMON (object);
+
+  g_print("notmuch_dbus_daemon_finalize()\n");
+
+  g_object_unref (self->priv->connection);
+  g_main_loop_unref (self->priv->main_loop);
+
+  G_OBJECT_CLASS (notmuch_dbus_daemon_parent_class)->finalize (object);
+}
+
+static void
 notmuch_dbus_daemon_class_init (NotmuchDBusDaemonClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
@@ -123,6 +136,7 @@ notmuch_dbus_daemon_class_init (NotmuchDBusDaemonClass *klass)
   gobject_class->set_property = notmuch_dbus_daemon_set_property;
   gobject_class->get_property = notmuch_dbus_daemon_get_property;
   gobject_class->constructed = notmuch_dbus_daemon_constructed;
+  gobject_class->finalize = notmuch_dbus_daemon_finalize;
 
   g_object_class_install_property (gobject_class,
       PROP_MAIN_LOOP,
