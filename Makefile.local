@@ -315,6 +315,8 @@ notmuch-dbus-daemon: $(notmuch_dbus_daemon_modules)
 notmuch-dbus-daemon-shared: $(notmuch_dbus_daemon_modules) lib/$(LINKER_NAME)
 	$(call quiet,$(FINAL_NOTMUCH_LINKER) $(CFLAGS)) $(notmuch_dbus_daemon_modules) $(FINAL_NOTMUCH_LDFLAGS) -o $@
 
+notmuch-dbus-daemon.o: notmuch-dbus-generated.h
+
 notmuch-dbus-generated.c notmuch-dbus-generated.h: org.notmuchmail.Notmuch.Index.xml
 	gdbus-codegen \
 	    --interface-prefix org.notmuchmail.Notmuch. \
