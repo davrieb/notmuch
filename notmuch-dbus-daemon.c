@@ -5,7 +5,6 @@
 #include "notmuch-dbus-daemon.h"
 #include "notmuch-dbus-generated.h"
 
-typedef struct _NotmuchDBusDaemonClass NotmuchDBusDaemonClass;
 typedef struct _NotmuchDBusDaemonPrivate NotmuchDBusDaemonPrivate;
 typedef struct _NotmuchDBusMainData NotmuchDBusMainData;
 
