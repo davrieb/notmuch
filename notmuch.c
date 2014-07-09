@@ -21,6 +21,7 @@
  */
 
 #include "notmuch-client.h"
+#include "notmuch-dbus-client.h"
 
 /*
  * Notmuch subcommand hook.
@@ -234,6 +235,9 @@ notmuch_command (notmuch_config_t *config,
      * and interactively guide the user through the configuration. */
     if (notmuch_config_is_new (config))
 	return notmuch_setup_command (config, 0, NULL);
+
+    NotmuchDBusClient *dbus_client = notmuch_dbus_client_new (config);
+    g_object_unref (dbus_client);
 
     /* Notmuch is already configured, but is there a database? */
     db_path = talloc_asprintf (config, "%s/%s",
